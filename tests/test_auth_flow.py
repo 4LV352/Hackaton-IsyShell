@@ -105,6 +105,21 @@ def test_protected_endpoint_with_correct_token_is_allowed(api_client: TestClient
     assert response.json()["success"] is True
 
 
+@pytest.mark.parametrize(
+    "header_value",
+    [
+        " test-token ",
+        "Bearer test-token",
+        "X-Isy-Token: test-token",
+    ],
+)
+def test_protected_endpoint_accepts_common_authorize_pastes(api_client: TestClient, header_value: str):
+    response = api_client.get("/api/v1/clients", headers={"X-Isy-Token": header_value})
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
 def test_critical_action_without_confirm_is_blocked(api_client: TestClient):
     response = api_client.patch("/api/v1/clients/1/deactivate", headers={"X-Isy-Token": "test-token"}, json={})
 

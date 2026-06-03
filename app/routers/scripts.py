@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Script
 from app.response import api_response
-from app.security import require_isy_token
+from app.security import normalize_isy_token, require_isy_token
 from app.schemas import ConfirmationPayload, ScriptCreate, ScriptExecutionRequest, ScriptRead, ScriptUpdate
 from app.services.audit import requester_ip_from_request
 from app.services.confirmation import require_confirmation
@@ -148,7 +148,7 @@ def deactivate_script(script_id: int, payload: ConfirmationPayload, session: Ses
 )
 def execute_script(script_id: int, payload: ScriptExecutionRequest, request: Request, session: Session = Depends(get_db)):
     require_confirmation(payload.confirm, "EXECUTAR")
-    token_value = request.headers.get("X-Isy-Token", "")
+    token_value = normalize_isy_token(request.headers.get("X-Isy-Token")) or ""
     requester_ip = requester_ip_from_request(request)
     code, body = execute_script_for_client(
         session,
