@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import hashlib
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -29,6 +30,14 @@ def redact_sensitive_values(text: str | None) -> str:
     for pattern in SENSITIVE_PATTERNS:
         redacted = pattern.sub(lambda match: f"{match.group(1)}=[REDACTED]", redacted)
     return redacted
+
+
+def requester_ip_from_request(request: Any) -> str:
+    forwarded_for = request.headers.get("X-Forwarded-For") if request.headers else None
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+    client = getattr(request, "client", None)
+    return getattr(client, "host", "") or ""
 
 
 def create_execution_log(

@@ -8,6 +8,8 @@ from pathlib import Path
 class Settings:
     def __init__(self) -> None:
         self.app_name = "isy-shell-api"
+        self.app_version = "1.0.0"
+        self.app_description = "API segura para executar scripts Bash autorizados por cliente."
         self.api_prefix = "/api/v1"
         self.environment = os.getenv("ENVIRONMENT", "development").strip().lower()
         self.api_token = os.getenv("ISY_API_TOKEN", "change-me-token")

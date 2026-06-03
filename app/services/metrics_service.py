@@ -26,6 +26,7 @@ def get_metrics(session: Session) -> dict:
     last_log = session.scalar(select(ExecutionLog).order_by(ExecutionLog.executed_at.desc()).limit(1))
     active_clients = session.scalar(select(func.count()).select_from(Client).where(Client.active.is_(True))) or 0
     active_scripts = session.scalar(select(func.count()).select_from(Script).where(Script.active.is_(True))) or 0
+    average_duration_ms = session.scalar(select(func.avg(ExecutionLog.duration_ms)).select_from(ExecutionLog)) or 0
 
     success_rate = 0.0
     if total_executions:
@@ -36,6 +37,7 @@ def get_metrics(session: Session) -> dict:
         "successful_executions": successful_executions,
         "failed_executions": failed_executions,
         "success_rate": success_rate,
+        "average_duration_ms": round(float(average_duration_ms), 2),
         "executions_today": executions_today,
         "last_script_executed": None
         if last_log is None

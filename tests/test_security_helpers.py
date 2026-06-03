@@ -1,10 +1,11 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from app.config import get_settings
 from app.models import ClientScript
-from app.services.audit import redact_sensitive_values, token_fingerprint
+from app.services.audit import redact_sensitive_values, requester_ip_from_request, token_fingerprint
 from app.services.client_service import create_or_activate_client_script, deactivate_client_script, slugify
 from app.services.script_runner import (
     HTTPException,
@@ -42,6 +43,12 @@ def test_redact_sensitive_values_masks_common_secrets():
         "password=[REDACTED] passwd=[REDACTED] token=[REDACTED] "
         "secret=[REDACTED] api_key=[REDACTED] key=[REDACTED]"
     )
+
+
+def test_requester_ip_prefers_forwarded_for():
+    request = SimpleNamespace(headers={"X-Forwarded-For": "203.0.113.10, 10.0.0.5"}, client=SimpleNamespace(host="127.0.0.1"))
+
+    assert requester_ip_from_request(request) == "203.0.113.10"
 
 
 def test_development_settings_use_sqlite(monkeypatch):

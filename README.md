@@ -171,6 +171,7 @@ $env:BASH_EXECUTABLE="C:\\Program Files\\Git\\bin\\bash.exe"
 - API: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/health`
+- Info: `http://localhost:8000/api/v1/info`
 
 ### Com Docker
 
@@ -211,7 +212,17 @@ Todos os endpoints protegidos exigem:
 X-Isy-Token: change-me-token
 ```
 
-O token é persistido na tabela `settings`, carregado no startup e pode ser alterado pelo endpoint de settings. A API nunca retorna o token puro.
+No Swagger (`/docs`), clique no botão `Authorize`, cole o token no campo `X-Isy-Token` e confirme. Depois disso, os endpoints protegidos usam o token automaticamente.
+
+O token inicial vem do `.env` apenas no primeiro seed. A API persiste o token como hash, nunca retorna o token puro em respostas comuns e registra apenas fingerprint nos logs.
+
+Para ações críticas, informe o campo `confirm` no corpo da requisição:
+
+- executar script: `EXECUTAR`
+- desativar cliente: `DESATIVAR_CLIENTE`
+- desativar script: `DESATIVAR_SCRIPT`
+- remover vínculo cliente-script: `REMOVER_VINCULO`
+- regenerar token: `REGENERAR_TOKEN`
 
 ## Seed inicial
 
@@ -233,6 +244,9 @@ O seed não libera todos os scripts para todos os clientes. Cada vínculo precis
 
 ### Saúde
 - `GET /health`
+- `GET /api/v1/info`
+
+O health check retorna serviço, ambiente, backend de banco, disponibilidade da pasta de scripts e timestamp UTC.
 
 ### Scripts
 - `GET /api/v1/scripts`
@@ -263,7 +277,13 @@ O seed não libera todos os scripts para todos os clientes. Cada vínculo precis
 - `GET /api/v1/logs/{log_id}`
 - `GET /api/v1/metrics`
 
+Logs aceitam filtros por `status`, `client_id`, `script_id` e `limit`.
+
+As métricas incluem total de execuções, sucessos, falhas, taxa de sucesso, duração média, execuções do dia, último script executado, clientes ativos e scripts ativos.
+
 ### Token
+- `GET /api/v1/auth/token/status`
+- `POST /api/v1/auth/token/regenerate`
 - `GET /api/v1/settings/token`
 - `PUT /api/v1/settings/token`
 
@@ -322,7 +342,11 @@ Remover o vínculo do script com o cliente:
 
 ```bash
 curl -X DELETE http://localhost:8000/api/v1/clients/1/scripts/3 \
-  -H "X-Isy-Token: change-me-token"
+  -H "Content-Type: application/json" \
+  -H "X-Isy-Token: change-me-token" \
+  -d '{
+    "confirm": "REMOVER_VINCULO"
+  }'
 ```
 
 Ativar vínculo existente:
@@ -340,7 +364,8 @@ curl -X POST http://localhost:8000/api/v1/scripts/3/execute \
   -H "X-Isy-Token: change-me-token" \
   -d '{
     "client_id": 1,
-    "params": ["cliente01", "cliente01.isy.one", "8155"]
+    "params": ["cliente01", "cliente01.isy.one", "8155"],
+    "confirm": "EXECUTAR"
   }'
 ```
 
@@ -380,16 +405,20 @@ Resposta de erro:
 curl -H "X-Isy-Token: change-me-token" http://localhost:8000/api/v1/logs
 ```
 
-## Como alterar token
+## Como regenerar token
+
+Use o token atual no header e confirme a ação no body. O token novo aparece apenas nessa resposta.
 
 ```bash
-curl -X PUT http://localhost:8000/api/v1/settings/token \
+curl -X POST http://localhost:8000/api/v1/auth/token/regenerate \
   -H "Content-Type: application/json" \
   -H "X-Isy-Token: change-me-token" \
   -d '{
-    "value": "novo-token-seguro"
+    "confirm": "REGENERAR_TOKEN"
   }'
 ```
+
+Depois de regenerar, clique novamente em `Authorize` no Swagger e cole o novo token. O token antigo deixa de funcionar.
 
 ## Segurança contra `command injection`
 
@@ -411,18 +440,20 @@ curl -X PUT http://localhost:8000/api/v1/settings/token \
   - `secret=...`
   - `api_key=...`
   - `key=...`
-- O token não é exposto em respostas
+- O token não é exposto em respostas comuns
+- A regeneração retorna o token novo apenas uma vez
 - O log armazena apenas fingerprint do token
 
 ## Diferenciais para o hackathon
 
 - Auditoria completa de sucesso, falha, timeout e bloqueios
-- Métricas operacionais prontas para dashboard
+- Métricas operacionais prontas para dashboard, incluindo duração média
 - Token dinâmico no banco
+- Regeneração manual de token com confirmação explícita
 - Controle por cliente e por script
 - Timeout configurável
 - Seeds automáticos para demo
-- Swagger disponível
+- Swagger com autenticação `X-Isy-Token`, descrições e exemplos de payload
 - Estrutura em camadas
 - Resposta JSON padronizada
 
@@ -431,7 +462,14 @@ curl -X PUT http://localhost:8000/api/v1/settings/token \
 1. Mostrar o problema: acesso manual via SSH e falta de rastreabilidade.
 2. Apresentar a solução: API segura para execução controlada de scripts.
 3. Abrir o Swagger e mostrar a lista de scripts e clientes.
-4. Executar um script real com parâmetro válido.
+4. Executar um script real com parâmetro válido e `confirm: EXECUTAR`.
 5. Abrir os logs e mostrar stdout, stderr, retorno e fingerprint do token.
 6. Apontar as métricas e o controle por cliente.
-7. Encerrar com os ganhos: segurança, governança e escala para mais de 30 clientes.
+7. Demonstrar a regeneração manual do token e autorizar novamente no Swagger.
+8. Encerrar com os ganhos: segurança, governança e escala para mais de 30 clientes.
+
+## Documentos de apoio
+
+- `MANUAL_TESTES.md`: passo a passo para testar a API manualmente.
+- `MANUAL_DEMO.md`: roteiro de apresentação de 3 a 5 minutos.
+- `DECISOES_TECNICAS.md`: decisões de arquitetura, segurança, limitações e próximos passos.

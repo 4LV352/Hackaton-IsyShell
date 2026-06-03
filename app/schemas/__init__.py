@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _reject_controls(value: str) -> str:
@@ -55,6 +55,25 @@ class StandardResponse(BaseModel):
 
 
 class ScriptCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "provisionar",
+                "filename": "provisionar.sh",
+                "description": "Provisionamento simulado",
+                "allowed_params_schema": {
+                    "type": "array",
+                    "items": [
+                        {"name": "client", "pattern": "^[a-zA-Z0-9_-]{1,32}$"},
+                        {"name": "domain", "pattern": "^[a-zA-Z0-9.-]{1,253}$"},
+                        {"name": "port", "pattern": "^[0-9]{2,5}$"},
+                    ],
+                },
+                "active": True,
+            }
+        }
+    )
+
     name: Annotated[str, Field(min_length=1, max_length=120)]
     filename: Annotated[str, Field(min_length=1, max_length=255, pattern=r"^[A-Za-z0-9_.-]+\.sh$")]
     description: str | None = None
@@ -82,8 +101,19 @@ class ScriptRead(BaseModel):
 
 
 class ScriptExecutionRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "client_id": 1,
+                "params": ["cliente01", "cliente01.isy.one", "8155"],
+                "confirm": "EXECUTAR",
+            }
+        }
+    )
+
     client_id: int
     params: list[str] = Field(default_factory=list)
+    confirm: str
 
 
 class ScriptExecutionResult(BaseModel):
@@ -100,6 +130,16 @@ class ScriptExecutionResult(BaseModel):
 
 
 class ClientCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Novo Cliente",
+                "domain": "novo.exemplo.com",
+                "active": True,
+            }
+        }
+    )
+
     name: Annotated[str, Field(min_length=1, max_length=160)]
     slug: Annotated[str | None, Field(default=None, max_length=180, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")] = None
     domain: Annotated[str, Field(min_length=1, max_length=255)]
@@ -141,6 +181,8 @@ class ExecutionLogRead(BaseModel):
 
 
 class TokenPayload(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"example": {"value": "novo-token-seguro"}})
+
     value: str
 
     @field_validator("value")
@@ -151,11 +193,24 @@ class TokenPayload(BaseModel):
         return value
 
 
+class ConfirmationPayload(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"example": {"confirm": "CONFIRMACAO_ESPERADA"}})
+
+    confirm: Annotated[str, Field(min_length=1, max_length=64)]
+
+
+class TokenRegenerateRequest(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"example": {"confirm": "REGENERAR_TOKEN"}})
+
+    confirm: Literal["REGENERAR_TOKEN"]
+
+
 class MetricsRead(BaseModel):
     total_executions: int
     successful_executions: int
     failed_executions: int
     success_rate: float
+    average_duration_ms: float
     executions_today: int
     last_script_executed: dict | None
     active_clients: int
